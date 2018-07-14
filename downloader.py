@@ -11,7 +11,7 @@ async def download(session, url):
 				data = await response.content.read(1024)
 				if not data:
 					break
-				fd.write(data)
+				await fd.write(data)
 		return await response.release()
 		
 		
