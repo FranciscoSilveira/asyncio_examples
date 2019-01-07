@@ -1,0 +1,7 @@
+Usage:
+
+```
+python3 Concierge.py
+```
+
+First run a server. Then run clients on different sockets. Everything you type and enter on one client's console will be broadcasted to the others.
