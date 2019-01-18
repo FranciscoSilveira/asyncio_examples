@@ -1,24 +1,40 @@
 import asyncssh
 import asyncio
-from _SSH import Abstract_SSH
+from BaseSSH import BaseSSH
 from aioconsole import ainput
 import pickle
 
 
-class Client(Abstract_SSH):
+class Client(BaseSSH):
     def __init__(self, reader, writer, name):
         super().__init__(reader, writer, name)
 
     async def run(self):
-        tasks = asyncio.gather(self.watch_reader(), self.watch_writer())
+        tasks = asyncio.gather(self.watch_reader(), self.watch_stdin())
         await tasks
 
-    # Overloaded because the default behavior sends a dict
-    # and here we only want to send a string
-    async def watch_writer(self):
+    async def watch_reader(self):
+        try:
+            async for object in super().watch_reader():
+                if "sender" in object:
+                    print("[{}] {}".format(object["sender"], object["message"]))
+                else:
+                    print("{}".format(object["message"]))
+        except asyncssh.DisconnectError:
+            print("Disconnect error")
+
+        while True:
+            object = await super().watch_reader()
+            if not object:
+                break
+            print("{} ({})".format(object, type(object)))
+
+    # Read the user's input until there is data,
+    # then send it through the socket
+    async def watch_stdin(self):
         while True:
             line = await ainput()
-            self.writeline(line)
+            self.write(line)
 
     # Opens a connection to the server, and using that connection opens a session
     # where data can be sent and retrieved. The socket is opened with no encoding,

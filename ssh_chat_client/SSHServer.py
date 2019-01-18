@@ -1,10 +1,9 @@
 import asyncssh
 import sys
-from _SSH import Abstract_SSH
-import pickle
+from BaseSSH import BaseSSH
 
 
-class Server(Abstract_SSH):
+class Server(BaseSSH):
     _clients = []
 
     def __init__(self, stdin, stdout, name):
@@ -12,12 +11,12 @@ class Server(Abstract_SSH):
 
     async def run(self):
         print("Entered run")
-        self.writeobj("Welcome to my server, {}!".format(self.name))
-        self.writeobj("{} other clients are connected".format(len(self._clients)))
-        self.broadcast("*** {} has entered the room ***".format(self.name))
+        self.write("Welcome to my server, {}!".format(self.name), server_message=True)
+        self.write("{} other clients are connected".format(len(self._clients)), server_message=True)
+        self.broadcast("*** {} has entered the room ***".format(self.name), server_message=True)
         self._clients.append(self)
         await self.watch_reader()
-        self.broadcast("*** {} has left the room ***\n".format(self.name))
+        self.broadcast("*** {} has left the room ***".format(self.name), server_message=True)
         self._clients.remove(self)
 
     # This gets overloaded since we don't just want to print a line,
@@ -25,16 +24,25 @@ class Server(Abstract_SSH):
     async def watch_reader(self):
         try:
             while True:
-                line = await self.readobj() # )["message"]
+                line = await self.read() # )["message"]
                 print("[{}] {}".format(self.name, line))
                 self.broadcast(line)
-        except asyncssh.BreakReceived:
-            print("Some weird exception")
+        except (asyncssh.BreakReceived, asyncssh.DisconnectError):
+            #print("I am done with {}".format(self.name))
+            pass
 
-    def broadcast(self, message):
+    def write(self, message, server_message=False):
+        object = {
+            "message": message
+        }
+        if not server_message:
+            object["sender"] = self.name
+        super().write(object)
+
+    def broadcast(self, message, server_message=False):
         for client in self._clients:
             if client != self:
-                client.writeobj(message, sender=client.name)
+                client.write(message, server_message)
 
     @staticmethod
     async def handle_session(stdin, stdout, stderr):
@@ -58,7 +66,7 @@ class Server(Abstract_SSH):
         def session_requested(self):
             return True
 
-        def connection_requested(self):
+        def connection_requested(self, dest_host, dest_port, orig_host, orig_port):
             return True
 
         def connection_made(self, conn):

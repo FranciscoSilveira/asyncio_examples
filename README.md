@@ -7,6 +7,7 @@ asyncio
 aiofiles
 aiohttp
 ainput
+asyncssh
 ```
 
 # Useful resources
